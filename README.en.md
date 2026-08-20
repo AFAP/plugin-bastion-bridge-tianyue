@@ -46,7 +46,8 @@ This project provides a single-file bridge that can be configured as TianYue's l
 - ✅ **Complete local API**: health, one-shot execution, SSE streaming, interactive input, and Socket.IO
 - ✅ **Automatic port discovery**: defaults to `8765`, increments when busy, and writes `active_port.txt`
 - ✅ **Connection keepalive**: runs a configurable harmless command after an idle interval
-- ✅ **Secure defaults**: loopback-only binding, credential redaction, and no command or output bodies in logs
+- ✅ **Readable console**: colored blocks show sanitized launch fields, connection state, commands, exit codes, and server results
+- ✅ **Secure defaults**: loopback-only binding; command/result bodies are previewed only in the live console, never in log files
 - ✅ **Automated releases**: tags trigger GitHub Actions builds, checksums, and Release publication
 
 ## 3. Repository layout
@@ -172,11 +173,18 @@ built-in defaults are used when it is absent.
 | `keepalive_interval_seconds` | `60` | Idle seconds before keepalive |
 | `keepalive_command` | `ls` | Must be harmless |
 | `log_level` | `INFO` | Logging level |
-| `console_log` | `false` | Also write logs to the console |
+| `console_log` | `true` | Show colored status, command, and response previews in the console |
+| `console_verbose` | `false` | Also show detailed INFO/DEBUG technical records in the console |
+| `console_output_limit` | `12000` | Per-command or output-field preview limit; full API responses are unaffected |
 
 ## 8. Logs and troubleshooting
 
 Logs are stored at `%LOCALAPPDATA%\sshbridge\TianYueSSHBridge\logs\bridge.log`.
+
+The console uses `>>>` for received parameters or commands and `<<<` for server responses,
+including source, duration, exit code, and stdout/stderr sizes. Passwords and interactive-input
+bodies remain hidden. Command and response bodies are live-console only; `bridge.log` keeps
+metadata such as lengths, exit codes, and connection status.
 
 | Symptom | Check |
 |---|---|
@@ -190,7 +198,8 @@ Logs are stored at `%LOCALAPPDATA%\sshbridge\TianYueSSHBridge\logs\bridge.log`.
 
 - The bridge receives session credentials from TianYue. Use it only in an **authorized environment**.
 - The unauthenticated API binds only to loopback, but **any local process may still call it**.
-- Passwords remain in process memory only; argument logs are redacted, and command/output bodies are not logged.
+- Passwords remain in process memory only; arguments are redacted, and command/output bodies are never written to log files.
+- The console can display sensitive server output. Close it after use and do not share screenshots containing business data.
 - The first connection automatically accepts the host key. Confirm this meets your security baseline.
 - See [SECURITY.md](SECURITY.md) for the full risk and hardening guidance.
 

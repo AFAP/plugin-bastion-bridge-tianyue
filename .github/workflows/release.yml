@@ -28,6 +28,9 @@ jobs:
       - name: Install pinned dependencies
         run: python -m pip install -r requirements.txt
 
+      - name: Run console and redaction tests
+        run: python -m unittest discover -s tests -v
+
       - name: Build tianyue_ssh_bridge.exe with PyInstaller
         run: python -m PyInstaller tianyue_ssh_bridge.spec --clean --noconfirm
 
