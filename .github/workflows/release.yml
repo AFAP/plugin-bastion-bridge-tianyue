@@ -1,0 +1,57 @@
+name: Build & Release tianyue_ssh_bridge.exe
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build on Windows
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+
+      - name: Install pinned dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Build tianyue_ssh_bridge.exe with PyInstaller
+        run: python -m PyInstaller tianyue_ssh_bridge.spec --clean --noconfirm
+
+      - name: Generate SHA-256 checksum
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash -Algorithm SHA256 -Path dist\tianyue_ssh_bridge.exe).Hash.ToLower()
+          "$hash  tianyue_ssh_bridge.exe" | Out-File -Encoding ascii dist\tianyue_ssh_bridge.exe.sha256
+          Write-Host "tianyue_ssh_bridge.exe SHA-256: $hash"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tianyue-bastion-bridge
+          path: |
+            dist/tianyue_ssh_bridge.exe
+            dist/tianyue_ssh_bridge.exe.sha256
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/tianyue_ssh_bridge.exe
+            dist/tianyue_ssh_bridge.exe.sha256
+          generate_release_notes: true

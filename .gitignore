@@ -1,0 +1,38 @@
+# 密钥与环境（防误提交，红线）
+.env
+.env.*
+*.pem
+*.key
+.credentials.yaml
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# 虚拟环境
+.venv/
+venv/
+env/
+
+# SVN 元数据
+.svn/
+
+# 构建产物（由 GitHub Actions 构建并发布到 Release）
+build/
+dist/
+build.log
+rebuild.log
+*.log
+*.spec.bak
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 操作系统
+.DS_Store
+Thumbs.db
