@@ -13,7 +13,7 @@
 
 | Audience | Integration |
 |---|---|
-| **DeepSeek Harness users** | Install the `/tianyue-bastion` skill in one line so AI can discover and call the bridge |
+| **DeepSeek Harness users** | Install the `/bastion-tianyue` skill in one line so AI can discover and call the bridge |
 | **Other AI agents or scripts** | Call the local REST, SSE, or Socket.IO API directly, independent of language or framework |
 
 ## 1. Problem solved
@@ -62,7 +62,7 @@ plugin-bastion-bridge-tianyue/
 ├── logger.py                       # Rotating logs
 ├── requirements.txt                # Fully pinned dependencies
 ├── tianyue_ssh_bridge.spec         # PyInstaller definition
-├── skill/tianyue-bastion/          # DeepSeek Harness skill bundle
+├── skill/bastion-tianyue/          # DeepSeek Harness skill bundle
 ├── scripts/install.ps1             # Skill installer and optional EXE download
 ├── scripts/uninstall.ps1           # Skill and optional EXE removal
 ├── docs/通用桥接器使用说明.md          # Full usage guide in Chinese
@@ -80,8 +80,8 @@ Build output, logs, virtual environments, and local configuration are excluded b
 powershell -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/AFAP/plugin-bastion-bridge-tianyue/main/scripts/install.ps1 | iex"
 ```
 
-The skill is installed to `%USERPROFILE%\.dsh\skills\tianyue-bastion\`, or under `DSH_HOME` when set.
-Invoke `/tianyue-bastion`, or assign an authorized server-operations task directly to the AI.
+The skill is installed to `%USERPROFILE%\.dsh\skills\bastion-tianyue\`, or under `DSH_HOME` when set.
+Invoke `/bastion-tianyue`, or assign an authorized server-operations task directly to the AI.
 
 ### 4.2 Download the bridge
 

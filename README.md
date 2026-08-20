@@ -13,7 +13,7 @@
 
 | 使用者 | 接入方式 |
 |---|---|
-| **DeepSeek Harness 用户** | 一行安装 `/tianyue-bastion` 技能，让 AI 自动发现桥接器并调用接口 |
+| **DeepSeek Harness 用户** | 一行安装 `/bastion-tianyue` 技能，让 AI 自动发现桥接器并调用接口 |
 | **其他 AI、Agent 或脚本** | 直接调用本机 REST、SSE 或 Socket.IO API，不绑定语言与框架 |
 
 ## 1. 它解决了什么问题
@@ -61,7 +61,7 @@ plugin-bastion-bridge-tianyue/
 ├── logger.py                       # 滚动日志
 ├── requirements.txt                # 全量锁版依赖
 ├── tianyue_ssh_bridge.spec         # PyInstaller 配置
-├── skill/tianyue-bastion/          # DeepSeek Harness 技能包
+├── skill/bastion-tianyue/          # DeepSeek Harness 技能包
 ├── scripts/install.ps1             # 技能安装与可选 EXE 下载
 ├── scripts/uninstall.ps1           # 技能与可选 EXE 卸载
 ├── docs/通用桥接器使用说明.md          # 完整使用说明
@@ -79,8 +79,8 @@ plugin-bastion-bridge-tianyue/
 powershell -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/AFAP/plugin-bastion-bridge-tianyue/main/scripts/install.ps1 | iex"
 ```
 
-技能安装到 `%USERPROFILE%\.dsh\skills\tianyue-bastion\`；设置了 `DSH_HOME` 时改用该目录。
-安装后可输入 `/tianyue-bastion`，或直接向 AI 派发已授权的服务器运维任务。
+技能安装到 `%USERPROFILE%\.dsh\skills\bastion-tianyue\`；设置了 `DSH_HOME` 时改用该目录。
+安装后可输入 `/bastion-tianyue`，或直接向 AI 派发已授权的服务器运维任务。
 
 ### 4.2 下载桥接器
 

@@ -33,19 +33,21 @@ function Write-Step([string]$Message) { Write-Host "==> $Message" -ForegroundCol
 function Write-Ok([string]$Message) { Write-Host "    [OK] $Message" -ForegroundColor Green }
 function Write-Warn2([string]$Message) { Write-Host "    [NOTE] $Message" -ForegroundColor Yellow }
 
-function Resolve-SkillTarget {
+function Resolve-SkillsRoot {
     if ($env:DSH_HOME -and $env:DSH_HOME.Trim().Length -gt 0) {
-        return Join-Path $env:DSH_HOME "skills\tianyue-bastion"
+        return Join-Path $env:DSH_HOME "skills"
     }
-    return Join-Path $HOME ".dsh\skills\tianyue-bastion"
+    return Join-Path $HOME ".dsh\skills"
 }
 
-$SkillTarget = Resolve-SkillTarget
+$SkillsRoot = Resolve-SkillsRoot
+$SkillTarget = Join-Path $SkillsRoot "bastion-tianyue"
+$LegacySkillTarget = Join-Path $SkillsRoot "tianyue-bastion"
 $ScriptDir = $null
 if ($PSScriptRoot) { $ScriptDir = $PSScriptRoot }
 $BundleSource = $null
 $LocalBundle = $null
-if ($ScriptDir) { $LocalBundle = Join-Path $ScriptDir "..\skill\tianyue-bastion" }
+if ($ScriptDir) { $LocalBundle = Join-Path $ScriptDir "..\skill\bastion-tianyue" }
 
 if ($LocalBundle -and (Test-Path (Join-Path $LocalBundle "SKILL.md"))) {
     $BundleSource = $LocalBundle
@@ -60,7 +62,7 @@ if ($LocalBundle -and (Test-Path (Join-Path $LocalBundle "SKILL.md"))) {
         if (Test-Path $ExtractDir) { Remove-Item $ExtractDir -Recurse -Force }
         Expand-Archive -Path $ZipPath -DestinationPath $ExtractDir -Force
         $RefFolder = $Ref -replace '/', '-'
-        $BundleSource = Join-Path $ExtractDir "$Repo-$RefFolder\skill\tianyue-bastion"
+        $BundleSource = Join-Path $ExtractDir "$Repo-$RefFolder\skill\bastion-tianyue"
     }
 }
 
@@ -72,6 +74,10 @@ if (-not $WhatIf -and -not (Test-Path (Join-Path $BundleSource "SKILL.md"))) {
 Write-Step "Installing the DSH skill to: $SkillTarget"
 if (-not $WhatIf) {
     if (Test-Path $SkillTarget) { Remove-Item $SkillTarget -Recurse -Force }
+    if (Test-Path $LegacySkillTarget) {
+        Remove-Item $LegacySkillTarget -Recurse -Force
+        Write-Ok "Removed the legacy tianyue-bastion skill."
+    }
     New-Item -ItemType Directory -Force -Path (Split-Path $SkillTarget -Parent) | Out-Null
     Copy-Item -Path $BundleSource -Destination $SkillTarget -Recurse
     Get-ChildItem $SkillTarget -Recurse -Directory -Filter "__pycache__" -ErrorAction SilentlyContinue |
@@ -79,6 +85,7 @@ if (-not $WhatIf) {
     Write-Ok "The skill is installed."
 } else {
     Write-Warn2 "WhatIf: copy $BundleSource -> $SkillTarget"
+    Write-Warn2 "WhatIf: remove legacy skill if present: $LegacySkillTarget"
 }
 
 if ($InstallBridge) {
@@ -100,4 +107,4 @@ if ($InstallBridge) {
     Write-Host "Set the TianYue local SSH/SecureCRT tool path to the EXE above."
 }
 
-Write-Host "Installation complete. Invoke /tianyue-bastion in DSH or assign an authorized operations task." -ForegroundColor Green
+Write-Host "Installation complete. Invoke /bastion-tianyue in DSH or assign an authorized operations task." -ForegroundColor Green

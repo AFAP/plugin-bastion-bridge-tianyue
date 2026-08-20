@@ -19,21 +19,28 @@ function Write-Step([string]$Message) { Write-Host "==> $Message" -ForegroundCol
 function Write-Ok([string]$Message) { Write-Host "    [OK] $Message" -ForegroundColor Green }
 function Write-Warn2([string]$Message) { Write-Host "    [NOTE] $Message" -ForegroundColor Yellow }
 
-$SkillTarget = Join-Path $HOME ".dsh\skills\tianyue-bastion"
+$SkillsRoot = Join-Path $HOME ".dsh\skills"
 if ($env:DSH_HOME -and $env:DSH_HOME.Trim().Length -gt 0) {
-    $SkillTarget = Join-Path $env:DSH_HOME "skills\tianyue-bastion"
+    $SkillsRoot = Join-Path $env:DSH_HOME "skills"
 }
 
-Write-Step "Removing the DSH skill: $SkillTarget"
-if (Test-Path $SkillTarget) {
-    if (-not $WhatIf) {
-        Remove-Item $SkillTarget -Recurse -Force
-        Write-Ok "The skill was removed."
+$SkillTargets = @(
+    (Join-Path $SkillsRoot "bastion-tianyue"),
+    (Join-Path $SkillsRoot "tianyue-bastion")
+)
+
+foreach ($SkillTarget in $SkillTargets) {
+    Write-Step "Removing the DSH skill: $SkillTarget"
+    if (Test-Path $SkillTarget) {
+        if (-not $WhatIf) {
+            Remove-Item $SkillTarget -Recurse -Force
+            Write-Ok "The skill was removed."
+        } else {
+            Write-Warn2 "WhatIf: remove $SkillTarget"
+        }
     } else {
-        Write-Warn2 "WhatIf: remove $SkillTarget"
+        Write-Ok "The skill is not installed."
     }
-} else {
-    Write-Ok "The skill is not installed."
 }
 
 if ($RemoveBridge) {
