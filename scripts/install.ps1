@@ -107,4 +107,4 @@ if ($InstallBridge) {
     Write-Host "Set the TianYue local SSH/SecureCRT tool path to the EXE above."
 }
 
-Write-Host "Installation complete. Invoke /bastion-tianyue in DSH or assign an authorized operations task." -ForegroundColor Green
+Write-Host "Installation complete. Invoke /bastion-tianyue explicitly in DSH; the skill is not loaded automatically." -ForegroundColor Green
