@@ -13,7 +13,7 @@
 
 | Audience | Integration |
 |---|---|
-| **DeepSeek Harness users** | Install the `/bastion-tianyue` skill in one line so AI can discover and call the bridge |
+| **DeepSeek Harness users** | Install the skill in one line, then explicitly invoke `/bastion-tianyue` when server access is needed |
 | **Other AI agents or scripts** | Call the local REST, SSE, or Socket.IO API directly, independent of language or framework |
 
 ## 1. Problem solved
@@ -82,7 +82,7 @@ powershell -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.c
 ```
 
 The skill is installed to `%USERPROFILE%\.dsh\skills\bastion-tianyue\`, or under `DSH_HOME` when set.
-Invoke `/bastion-tianyue`, or assign an authorized server-operations task directly to the AI.
+Invoke `/bastion-tianyue` explicitly. The skill stays out of model-facing catalogs and context until then.
 
 ### 4.2 Download the bridge
 

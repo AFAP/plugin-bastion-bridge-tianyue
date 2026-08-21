@@ -13,7 +13,7 @@
 
 | 使用者 | 接入方式 |
 |---|---|
-| **DeepSeek Harness 用户** | 一行安装 `/bastion-tianyue` 技能，让 AI 自动发现桥接器并调用接口 |
+| **DeepSeek Harness 用户** | 一行安装技能；需要操作服务器时输入 `/bastion-tianyue` 手动唤起 |
 | **其他 AI、Agent 或脚本** | 直接调用本机 REST、SSE 或 Socket.IO API，不绑定语言与框架 |
 
 ## 1. 它解决了什么问题
@@ -81,7 +81,7 @@ powershell -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.c
 ```
 
 技能安装到 `%USERPROFILE%\.dsh\skills\bastion-tianyue\`；设置了 `DSH_HOME` 时改用该目录。
-安装后可输入 `/bastion-tianyue`，或直接向 AI 派发已授权的服务器运维任务。
+安装后输入 `/bastion-tianyue` 手动唤起。该技能不会自动进入模型目录或上下文。
 
 ### 4.2 下载桥接器
 
