@@ -2,6 +2,7 @@
 name: bastion-tianyue
 description: 通过天玥堡垒机桥接器的本地 REST API，在已连接的目标服务器上执行命令、流式查看输出并发送交互输入。
 whenToUse: 用户要求操作天玥堡垒机已连接的服务器，或提到天玥、堡垒机桥接器、sshbridge、8765 端口时。
+disable-model-invocation: true
 ---
 
 # 天玥堡垒机 SSH 桥接器操作技能
