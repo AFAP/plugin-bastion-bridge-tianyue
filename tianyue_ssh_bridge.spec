@@ -6,7 +6,7 @@ This script instructs PyInstaller to bundle the application into a single
 Windows executable file. It assumes the following source modules are present
 in the same directory:
 
-    connection.py, params.py, config.py, logger.py,
+    connection.py, params.py, config.py, logger.py, version.py,
     ssh_client.py, api_server.py, main.py, requirements.txt
 
 The output filename is intentionally ASCII (tianyue_ssh_bridge.exe) to avoid

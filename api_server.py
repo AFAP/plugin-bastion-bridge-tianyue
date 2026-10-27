@@ -29,6 +29,7 @@ from flask_socketio import SocketIO, emit
 from connection import ConnectionParams
 from logger import get_logger, log_blank_line, log_console
 from ssh_client import SSHBridge
+from version import health_fields
 
 
 logger = get_logger(__name__)
@@ -196,7 +197,11 @@ class BridgeAPI:
         def health() -> Response:
             connected = self.bridge.is_connected()
             logger.debug("/health requested, connected=%s", connected)
-            return jsonify({"status": "ok", "connected": connected})
+            payload: Dict[str, Any] = {"status": "ok", "connected": connected}
+            # Version marker: which bridge build, and which bastion client it
+            # was verified against.  Additive, so existing clients still work.
+            payload.update(health_fields())
+            return jsonify(payload)
 
         @self.app.route("/execute", methods=["POST"])
         def execute() -> Response:

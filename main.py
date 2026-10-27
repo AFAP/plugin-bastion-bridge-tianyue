@@ -45,6 +45,13 @@ from logger import (
 )
 from params import parse_args
 from ssh_client import SSHBridge
+from version import (
+    BASTION_CLIENT_STATUS,
+    BASTION_TARGET,
+    BRIDGE_VERSION,
+    VERSION,
+    version_lines,
+)
 from api_server import start_api
 
 
@@ -62,6 +69,12 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "console_verbose": False,
     "console_output_limit": 12000,
 }
+
+
+#: Local-only flags answered before the gateway parser runs, so a maintainer can
+#: ask the EXE which bastion version it was built for.  The gateway never passes
+#: them, and they are only honoured as the sole argument.
+VERSION_FLAGS = {"--version", "-V"}
 
 
 def merge_config(user_config: Optional[Dict[str, Any]]) -> Dict[str, Any]:
@@ -157,13 +170,24 @@ def _display_value(value: Any) -> str:
     return str(value)
 
 
+def print_version() -> None:
+    """Print the version marker used by ``--version`` and support tickets."""
+    print("天玥堡垒机 SSH 桥接器")
+    for line in version_lines():
+        print(f"    {line}")
+
+
 def _display_startup(argv: List[str]) -> None:
-    """Show the bridge banner and sanitized gateway arguments."""
+    """Show the bridge banner, version marker, and sanitized gateway arguments."""
     log_blank_line()
     log_console("╔══════════════════════════════════════════════════════════╗")
     log_console("║              天玥堡垒机 SSH 桥接器                       ║")
     log_console("║     TianYue Bastion SSH Bridge · 本机安全桥接模式        ║")
     log_console("╚══════════════════════════════════════════════════════════╝")
+    log_console("    桥接器版本   : %s", BRIDGE_VERSION)
+    log_console("    完整版本号   : %s", VERSION)
+    log_console("    适用堡垒机   : %s（%s）", BASTION_TARGET, BASTION_CLIENT_STATUS)
+    log_blank_line()
     log_console(">>> 天玥传入参数（敏感字段已脱敏） | 共 %d 项", len(argv))
     safe_argv = _mask_argv(argv)
     if not safe_argv:
@@ -293,6 +317,12 @@ def main(argv: Optional[List[str]] = None) -> int:
         except AttributeError:
             pass
 
+    # ``--version``/``-V`` is a local support affordance: answer it and exit
+    # without touching config, logging, or the SSH connection.
+    if len(argv) == 1 and argv[0] in VERSION_FLAGS:
+        print_version()
+        return 0
+
     # Load config before setting up logging because it may contain log_level.
     user_config = load_config()
     config = merge_config(user_config)
@@ -312,6 +342,7 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     logger.info("=" * 60)
     logger.info("TianYue SSH Bridge started")
+    logger.info("Bridge version: %s | bastion: %s", VERSION, BASTION_TARGET)
     logger.info("Python version: %s", sys.version.replace("\n", " "))
     logger.info("Command line argument count: %d", len(argv))
     for idx, arg in enumerate(_mask_argv(argv), start=1):

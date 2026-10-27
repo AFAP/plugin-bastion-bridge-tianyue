@@ -16,6 +16,28 @@
 | **DeepSeek Harness 用户** | 一行安装技能；需要操作服务器时输入 `/bastion-tianyue` 手动唤起 |
 | **其他 AI、Agent 或脚本** | 直接调用本机 REST、SSE 或 Socket.IO API，不绑定语言与框架 |
 
+## 0. 版本与适用堡垒机
+
+| 项目 | 当前值 |
+|---|---|
+| 桥接器版本 | `1.0.0` |
+| 完整版本号 | `1.0.0-om6.0.4.16603` |
+| 适用堡垒机客户端 | `OMClientPlus 6.0.4.16603` |
+| 状态 | ✅ 生产环境平稳运行的基线版本 |
+
+桥接器依赖堡垒机客户端传出的 SecureCRT 会话参数工作，客户端升级后参数形态可能变化，
+因此每个版本都标注其**实测通过**的客户端版本。版本号规则为
+`<桥接器版本>-om<堡垒机客户端版本>`。
+
+运行时可用以下任一方式确认当前版本：
+
+- 控制台启动横幅（显示桥接器版本与适用堡垒机版本）；
+- `tianyue_ssh_bridge.exe --version`；
+- `GET /health` 返回的 `version`、`bridge_version` 与 `bastion` 字段。
+
+堡垒机客户端升级后，请新建版本号（例如 `1.1.0-om<新客户端版本>`）并重新验证，
+不要把当前版本直接用于未验证的客户端。
+
 ## 1. 它解决了什么问题
 
 天玥运维安全网关可把 SSH 资源交给 SecureCRT 等本地终端，但这类界面主要面向人工交互，
@@ -60,6 +82,7 @@ plugin-bastion-bridge-tianyue/
 ├── connection.py                   # 连接参数数据类
 ├── config.py                       # 本地配置
 ├── logger.py                       # 滚动日志
+├── version.py                      # 版本标记与堡垒机适用版本号
 ├── requirements.txt                # 全量锁版依赖
 ├── tianyue_ssh_bridge.spec         # PyInstaller 配置
 ├── skill/bastion-tianyue/          # DeepSeek Harness 技能包
@@ -132,7 +155,9 @@ Get-Content .\tianyue_ssh_bridge.exe.sha256
 curl http://127.0.0.1:8765/health
 ```
 
-返回 `{"status":"ok","connected":true}` 即可调用命令接口。
+返回 `{"status":"ok","connected":true}` 即可调用命令接口。响应中的 `version`、
+`bridge_version` 与 `bastion` 字段即当前版本标记，可用于确认本机运行的是哪一版
+桥接器、它对应的堡垒机客户端版本是多少。
 
 ## 6. API 速查
 
@@ -143,6 +168,18 @@ curl http://127.0.0.1:8765/health
 | 流式输出 | `GET /stream?command=...` |
 | 交互输入 | `POST /input` `{"data":"y\n"}` |
 | Socket.IO | 同一 Origin，默认路径 `/socket.io/`，事件 `execute` / `stream` / `input` |
+
+`GET /health` 响应示例（版本字段为新增，`status`、`connected` 保持不变）：
+
+```json
+{
+  "status": "ok",
+  "connected": true,
+  "version": "1.0.0-om6.0.4.16603",
+  "bridge_version": "1.0.0",
+  "bastion": {"client": "OMClientPlus", "version": "6.0.4.16603"}
+}
+```
 
 ```bash
 curl -X POST http://127.0.0.1:8765/execute \
@@ -204,8 +241,9 @@ curl -X POST http://127.0.0.1:8765/execute \
 
 **Q：默认端口是多少？** `8765`。端口占用时自动顺延，以 `active_port.txt` 为准。
 
-**Q：支持哪些天玥版本？** 当前解析器按天玥 V6.0 已观察到的 SecureCRT 会话风格实现，
-同时兼容多种通用格式。若参数形态不同，请只提交脱敏后的复现信息。
+**Q：支持哪些天玥版本？** 当前基线版本已在 `OMClientPlus 6.0.4.16603` 上平稳运行，
+版本标记 `1.0.0-om6.0.4.16603`。解析器按该客户端传出的 SecureCRT 会话风格实现，
+同时兼容多种通用格式；其他客户端版本需重新验证后再标注对应版本号。
 
 **Q：是否必须使用 DeepSeek Harness？** 不需要。任何能访问本机 HTTP 接口的 AI、Agent 或脚本都可接入。
 
@@ -217,12 +255,16 @@ curl -X POST http://127.0.0.1:8765/execute \
 
 ```powershell
 python -m pip install -r requirements.txt
+python -m unittest discover -s tests -v
 python -m PyInstaller tianyue_ssh_bridge.spec --clean --noconfirm
+.\dist\tianyue_ssh_bridge.exe --version
 ```
 
-产物位于 `dist\tianyue_ssh_bridge.exe`，不会被 Git 跟踪。
+产物位于 `dist\tianyue_ssh_bridge.exe`，不会被 Git 跟踪。`--version` 应打印与
+[version.py](version.py) 一致的桥接器版本和适用堡垒机版本。
 
-CI 发布流程：推送 `v*` tag → Windows runner 安装锁定依赖 → PyInstaller 构建 →
+CI 发布流程：推送 `v*` tag（例如 `v1.0.0-om6.0.4.16603`，与 `version.py` 中的
+`VERSION` 一致）→ Windows runner 安装锁定依赖 → PyInstaller 构建 →
 生成 SHA-256 → 发布 GitHub Release。`workflow_dispatch` 可用于无 tag 的手动构建验证。
 
 ## 12. 相关文档

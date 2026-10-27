@@ -16,6 +16,28 @@
 | **DeepSeek Harness users** | Install the skill in one line, then explicitly invoke `/bastion-tianyue` when server access is needed |
 | **Other AI agents or scripts** | Call the local REST, SSE, or Socket.IO API directly, independent of language or framework |
 
+## 0. Version and bastion compatibility
+
+| Item | Current value |
+|---|---|
+| Bridge version | `1.0.0` |
+| Full version marker | `1.0.0-om6.0.4.16603` |
+| Supported bastion client | `OMClientPlus 6.0.4.16603` |
+| Status | ✅ Baseline build, running stable in production |
+
+The bridge depends on the SecureCRT-style session arguments produced by the bastion client, and
+those can change between client versions. Every build therefore records the client version it was
+**actually verified against**, using the version scheme `<bridge version>-om<client version>`.
+
+Confirm the running version in any of these ways:
+
+- the startup banner in the console (bridge version plus supported bastion version);
+- `tianyue_ssh_bridge.exe --version`;
+- the `version`, `bridge_version`, and `bastion` fields returned by `GET /health`.
+
+After upgrading the bastion client, use a new version number (for example
+`1.1.0-om<new client version>`) and re-verify. Do not point the current build at an unverified client.
+
 ## 1. Problem solved
 
 TianYue Operations Security Gateway can launch local terminals such as SecureCRT for SSH resources,
@@ -61,6 +83,7 @@ plugin-bastion-bridge-tianyue/
 ├── connection.py                   # Connection data model
 ├── config.py                       # Local configuration
 ├── logger.py                       # Rotating logs
+├── version.py                      # Version marker and supported bastion version
 ├── requirements.txt                # Fully pinned dependencies
 ├── tianyue_ssh_bridge.spec         # PyInstaller definition
 ├── skill/bastion-tianyue/          # DeepSeek Harness skill bundle
@@ -133,7 +156,9 @@ Its default content is `127.0.0.1:8765`. Use the actual port from the file:
 curl http://127.0.0.1:8765/health
 ```
 
-The API is ready when it returns `{"status":"ok","connected":true}`.
+The API is ready when it returns `{"status":"ok","connected":true}`. The same response carries
+`version`, `bridge_version`, and `bastion`, which identify the exact bridge build and the bastion
+client version it was verified against.
 
 ## 6. API quick reference
 
@@ -144,6 +169,18 @@ The API is ready when it returns `{"status":"ok","connected":true}`.
 | Stream | `GET /stream?command=...` |
 | Interactive input | `POST /input` `{"data":"y\n"}` |
 | Socket.IO | Same Origin, default `/socket.io/` path, events `execute` / `stream` / `input` |
+
+`GET /health` response (the version fields are additive; `status` and `connected` are unchanged):
+
+```json
+{
+  "status": "ok",
+  "connected": true,
+  "version": "1.0.0-om6.0.4.16603",
+  "bridge_version": "1.0.0",
+  "bastion": {"client": "OMClientPlus", "version": "6.0.4.16603"}
+}
+```
 
 ```bash
 curl -X POST http://127.0.0.1:8765/execute \
@@ -207,8 +244,10 @@ metadata such as lengths, exit codes, and connection status.
 
 **Q: What is the default port?** `8765`. If it is busy, the bridge increments it; trust `active_port.txt`.
 
-**Q: Which TianYue versions are supported?** The parser covers the observed TianYue V6.0 SecureCRT session format
-and several generic formats. Submit only sanitized reproduction details for different invocations.
+**Q: Which TianYue versions are supported?** The current baseline, version marker
+`1.0.0-om6.0.4.16603`, runs stable against `OMClientPlus 6.0.4.16603`. The parser implements the
+SecureCRT session style that client produces and several generic formats. Other client versions
+need re-verification and their own version marker.
 
 **Q: Is DeepSeek Harness required?** No. Any AI agent or script that can access the local HTTP API can integrate.
 
@@ -220,13 +259,17 @@ Local verification:
 
 ```powershell
 python -m pip install -r requirements.txt
+python -m unittest discover -s tests -v
 python -m PyInstaller tianyue_ssh_bridge.spec --clean --noconfirm
+.\dist\tianyue_ssh_bridge.exe --version
 ```
 
-The result is `dist\tianyue_ssh_bridge.exe`, which Git ignores.
+The result is `dist\tianyue_ssh_bridge.exe`, which Git ignores. `--version` must print the same
+bridge and bastion versions as [version.py](version.py).
 
-CI flow: push a `v*` tag → install pinned dependencies on a Windows runner → build with PyInstaller →
-generate SHA-256 → publish a GitHub Release. `workflow_dispatch` supports a build without a tag.
+CI flow: push a `v*` tag (for example `v1.0.0-om6.0.4.16603`, matching `VERSION` in `version.py`) →
+install pinned dependencies on a Windows runner → build with PyInstaller → generate SHA-256 →
+publish a GitHub Release. `workflow_dispatch` supports a build without a tag.
 
 ## 12. Related documents
 

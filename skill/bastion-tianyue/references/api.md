@@ -10,8 +10,17 @@ GET <BASE>/health
 ```
 
 ```json
-{"status": "ok", "connected": true}
+{
+  "status": "ok",
+  "connected": true,
+  "version": "1.0.0-om6.0.4.16603",
+  "bridge_version": "1.0.0",
+  "bastion": {"client": "OMClientPlus", "version": "6.0.4.16603"}
+}
 ```
+
+`version` / `bridge_version` / `bastion` 是版本标记：桥接器按该堡垒机客户端版本的参数形态
+验证过。旧版本桥接器不返回这些字段，判断可用性仍以 `connected` 为准。
 
 ## 2. 执行单次命令
 
