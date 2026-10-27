@@ -13,9 +13,9 @@ GET <BASE>/health
 {
   "status": "ok",
   "connected": true,
-  "version": "1.0.0-om6.0.4.16603",
+  "version": "1.0.0-om6.0.7.0",
   "bridge_version": "1.0.0",
-  "bastion": {"client": "OMClientPlus", "version": "6.0.4.16603"}
+  "bastion": {"client": "OMClientPlus", "version": "6.0.7.0"}
 }
 ```
 

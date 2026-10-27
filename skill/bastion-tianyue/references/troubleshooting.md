@@ -11,6 +11,7 @@
 | 命令超时 | 增大 `timeout` 或使用 `/stream` |
 | `no acceptable kex algorithm` | 当前版本保留 Paramiko 2.12.0 兼容旧算法；如仍失败，请提交已脱敏日志 |
 | 中文乱码 | 使用 `scripts/bridge.py`，不要在非 UTF-8 终端手工拼请求 |
+| 提示 `SecureCRT工具版本太低` | 客户端版本高于桥接器标注的版本，换用对应 `-om` 版本包 |
 | 杀毒软件报毒 | 校验 Release SHA-256 后按组织流程加白，或使用源码运行 |
 
 ## 日志位置

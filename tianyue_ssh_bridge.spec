@@ -100,6 +100,10 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
+    # SecureCRT-compatible VERSION resource: the 天玥 client refuses to launch a
+    # "SecureCRT" tool that reports a file version below 6.X, and an unstamped
+    # PyInstaller EXE reports nothing at all.  See version_info.txt.
+    version="version_info.txt",
     # Console=True keeps a visible console window. This is useful for
     # diagnostics while the gateway launches the EXE. Logs are also written
     # to %LOCALAPPDATA%\sshbridge\TianYueSSHBridge\logs\bridge.log.

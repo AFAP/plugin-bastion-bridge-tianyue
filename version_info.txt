@@ -1,0 +1,46 @@
+# PyInstaller VERSIONINFO resource for tianyue_ssh_bridge.exe.
+#
+# Why a 9.x file version while the bridge's own version lives in version.py:
+# the 天玥 bastion client validates the configured "SecureCRT" tool before
+# launching it and refuses anything below SecureCRT 6.X with
+#
+#     SecureCRT工具版本太低，请升级到6.X及以上版本。
+#
+# A stock PyInstaller build carries no VERSION resource, so the check reads
+# 0.0.0.0 and the session never starts.  Declaring 9.0.0.0 keeps that gate
+# satisfied; the bridge still speaks SSH itself, and its real version stays in
+# version.py, the console banner and /health.
+#
+# Bump this only if the client raises its minimum SecureCRT version.
+
+VSVersionInfo(
+  ffi=FixedFileInfo(
+    filevers=(9, 0, 0, 0),
+    prodvers=(9, 0, 0, 0),
+    mask=0x3f,
+    flags=0x0,
+    OS=0x40004,
+    fileType=0x1,
+    subtype=0x0,
+    date=(0, 0)
+  ),
+  kids=[
+    StringFileInfo(
+      [
+        StringTable(
+          '040904B0',
+          [
+            StringStruct('CompanyName', 'plugin-bastion-bridge-tianyue'),
+            StringStruct('FileDescription', 'TianYue Bastion SSH Bridge'),
+            StringStruct('FileVersion', '9.0.0.0'),
+            StringStruct('InternalName', 'tianyue_ssh_bridge'),
+            StringStruct('OriginalFilename', 'tianyue_ssh_bridge.exe'),
+            StringStruct('ProductName', 'TianYue Bastion SSH Bridge'),
+            StringStruct('ProductVersion', '9.0.0.0'),
+          ]
+        )
+      ]
+    ),
+    VarFileInfo([VarStruct('Translation', [1033, 1200])])
+  ]
+)

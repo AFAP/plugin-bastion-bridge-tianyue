@@ -21,13 +21,26 @@
 | 项目 | 当前值 |
 |---|---|
 | 桥接器版本 | `1.0.0` |
-| 完整版本号 | `1.0.0-om6.0.4.16603` |
-| 适用堡垒机客户端 | `OMClientPlus 6.0.4.16603` |
-| 状态 | ✅ 生产环境平稳运行的基线版本 |
+| 完整版本号 | `1.0.0-om6.0.7.0` |
+| 适用堡垒机客户端 | `OMClientPlus 6.0.7.0` |
+| 状态 | ✅ 已在升级后的客户端上验证通过 |
 
 桥接器依赖堡垒机客户端传出的 SecureCRT 会话参数工作，客户端升级后参数形态可能变化，
 因此每个版本都标注其**实测通过**的客户端版本。版本号规则为
 `<桥接器版本>-om<堡垒机客户端版本>`。
+
+### 0.1 与 SecureCRT 版本校验的关系
+
+新版堡垒机客户端在启动前会读取「SecureCRT 工具」的**可执行文件版本**，低于 6.X 直接拒绝：
+
+```text
+SecureCRT工具版本太低，请升级到6.X及以上版本。
+```
+
+PyInstaller 默认不写 Windows 版本资源，读到的是 `0.0.0.0`，所以会话根本不会启动。
+本项目通过 [version_info.txt](version_info.txt) 给 EXE 写入 `9.0.0.0` 的版本资源来满足该
+校验；桥接器本身仍是用 Paramiko 直连 SSH，**真实版本号以上面的表格、控制台横幅和
+`/health` 为准**。若客户端将来提高最低版本要求，只需改 `version_info.txt`。
 
 运行时可用以下任一方式确认当前版本：
 
@@ -83,6 +96,7 @@ plugin-bastion-bridge-tianyue/
 ├── config.py                       # 本地配置
 ├── logger.py                       # 滚动日志
 ├── version.py                      # 版本标记与堡垒机适用版本号
+├── version_info.txt                # EXE 的版本资源（满足客户端 SecureCRT 版本校验）
 ├── requirements.txt                # 全量锁版依赖
 ├── tianyue_ssh_bridge.spec         # PyInstaller 配置
 ├── skill/bastion-tianyue/          # DeepSeek Harness 技能包
@@ -175,9 +189,9 @@ curl http://127.0.0.1:8765/health
 {
   "status": "ok",
   "connected": true,
-  "version": "1.0.0-om6.0.4.16603",
+  "version": "1.0.0-om6.0.7.0",
   "bridge_version": "1.0.0",
-  "bastion": {"client": "OMClientPlus", "version": "6.0.4.16603"}
+  "bastion": {"client": "OMClientPlus", "version": "6.0.7.0"}
 }
 ```
 
@@ -241,9 +255,10 @@ curl -X POST http://127.0.0.1:8765/execute \
 
 **Q：默认端口是多少？** `8765`。端口占用时自动顺延，以 `active_port.txt` 为准。
 
-**Q：支持哪些天玥版本？** 当前基线版本已在 `OMClientPlus 6.0.4.16603` 上平稳运行，
-版本标记 `1.0.0-om6.0.4.16603`。解析器按该客户端传出的 SecureCRT 会话风格实现，
-同时兼容多种通用格式；其他客户端版本需重新验证后再标注对应版本号。
+**Q：支持哪些天玥版本？** 当前版本已在 `OMClientPlus 6.0.7.0` 上验证通过，版本标记
+`1.0.0-om6.0.7.0`；旧客户端 `6.0.4.16603` 请使用 `1.0.0-om6.0.4.16603` 包。解析器按客户
+端传出的 SecureCRT 会话风格实现，同时兼容多种通用格式；其他客户端版本需重新验证后再标注
+对应版本号。
 
 **Q：是否必须使用 DeepSeek Harness？** 不需要。任何能访问本机 HTTP 接口的 AI、Agent 或脚本都可接入。
 
@@ -263,7 +278,7 @@ python -m PyInstaller tianyue_ssh_bridge.spec --clean --noconfirm
 产物位于 `dist\tianyue_ssh_bridge.exe`，不会被 Git 跟踪。`--version` 应打印与
 [version.py](version.py) 一致的桥接器版本和适用堡垒机版本。
 
-CI 发布流程：推送 `v*` tag（例如 `v1.0.0-om6.0.4.16603`，与 `version.py` 中的
+CI 发布流程：推送 `v*` tag（例如 `v1.0.0-om6.0.7.0`，与 `version.py` 中的
 `VERSION` 一致）→ Windows runner 安装锁定依赖 → PyInstaller 构建 →
 生成 SHA-256 → 发布 GitHub Release。`workflow_dispatch` 可用于无 tag 的手动构建验证。
 

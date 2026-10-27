@@ -21,13 +21,28 @@
 | Item | Current value |
 |---|---|
 | Bridge version | `1.0.0` |
-| Full version marker | `1.0.0-om6.0.4.16603` |
-| Supported bastion client | `OMClientPlus 6.0.4.16603` |
-| Status | ✅ Baseline build, running stable in production |
+| Full version marker | `1.0.0-om6.0.7.0` |
+| Supported bastion client | `OMClientPlus 6.0.7.0` |
+| Status | ✅ Verified against the upgraded client |
 
 The bridge depends on the SecureCRT-style session arguments produced by the bastion client, and
 those can change between client versions. Every build therefore records the client version it was
 **actually verified against**, using the version scheme `<bridge version>-om<client version>`.
+
+### 0.1 SecureCRT version check
+
+The upgraded bastion client reads the file version of the configured "SecureCRT" tool and refuses
+to start anything below 6.X:
+
+```text
+SecureCRT工具版本太低，请升级到6.X及以上版本。
+```
+
+A stock PyInstaller build writes no Windows version resource, so the check reads `0.0.0.0` and the
+session never starts. [version_info.txt](version_info.txt) stamps the EXE with `9.0.0.0` to satisfy
+that gate; the bridge still speaks SSH through Paramiko, and its **real version remains the table
+above, the console banner, and `/health`**. If the client raises its minimum, only
+`version_info.txt` needs to change.
 
 Confirm the running version in any of these ways:
 
@@ -84,6 +99,7 @@ plugin-bastion-bridge-tianyue/
 ├── config.py                       # Local configuration
 ├── logger.py                       # Rotating logs
 ├── version.py                      # Version marker and supported bastion version
+├── version_info.txt                # EXE version resource (satisfies the SecureCRT check)
 ├── requirements.txt                # Fully pinned dependencies
 ├── tianyue_ssh_bridge.spec         # PyInstaller definition
 ├── skill/bastion-tianyue/          # DeepSeek Harness skill bundle
@@ -176,9 +192,9 @@ client version it was verified against.
 {
   "status": "ok",
   "connected": true,
-  "version": "1.0.0-om6.0.4.16603",
+  "version": "1.0.0-om6.0.7.0",
   "bridge_version": "1.0.0",
-  "bastion": {"client": "OMClientPlus", "version": "6.0.4.16603"}
+  "bastion": {"client": "OMClientPlus", "version": "6.0.7.0"}
 }
 ```
 
@@ -244,10 +260,11 @@ metadata such as lengths, exit codes, and connection status.
 
 **Q: What is the default port?** `8765`. If it is busy, the bridge increments it; trust `active_port.txt`.
 
-**Q: Which TianYue versions are supported?** The current baseline, version marker
-`1.0.0-om6.0.4.16603`, runs stable against `OMClientPlus 6.0.4.16603`. The parser implements the
-SecureCRT session style that client produces and several generic formats. Other client versions
-need re-verification and their own version marker.
+**Q: Which TianYue versions are supported?** This build is verified against `OMClientPlus 6.0.7.0`
+(version marker `1.0.0-om6.0.7.0`); for the older `6.0.4.16603` client use the
+`1.0.0-om6.0.4.16603` package. The parser implements the SecureCRT session style the client
+produces and several generic formats. Other client versions need re-verification and their own
+version marker.
 
 **Q: Is DeepSeek Harness required?** No. Any AI agent or script that can access the local HTTP API can integrate.
 
@@ -267,7 +284,7 @@ python -m PyInstaller tianyue_ssh_bridge.spec --clean --noconfirm
 The result is `dist\tianyue_ssh_bridge.exe`, which Git ignores. `--version` must print the same
 bridge and bastion versions as [version.py](version.py).
 
-CI flow: push a `v*` tag (for example `v1.0.0-om6.0.4.16603`, matching `VERSION` in `version.py`) →
+CI flow: push a `v*` tag (for example `v1.0.0-om6.0.7.0`, matching `VERSION` in `version.py`) →
 install pinned dependencies on a Windows runner → build with PyInstaller → generate SHA-256 →
 publish a GitHub Release. `workflow_dispatch` supports a build without a tag.
 
