@@ -20,8 +20,8 @@
 
 | 项目 | 当前值 |
 |---|---|
-| 桥接器版本 | `1.0.0` |
-| 完整版本号 | `1.0.0-om6.0.7.0` |
+| 桥接器版本 | `1.1.0` |
+| 完整版本号 | `1.1.0-om6.0.7.0` |
 | 适用堡垒机客户端 | `OMClientPlus 6.0.7.0` |
 | 状态 | ✅ 已在升级后的客户端上验证通过 |
 
@@ -48,7 +48,7 @@ PyInstaller 默认不写 Windows 版本资源，读到的是 `0.0.0.0`，所以�
 - `tianyue_ssh_bridge.exe --version`；
 - `GET /health` 返回的 `version`、`bridge_version` 与 `bastion` 字段。
 
-堡垒机客户端升级后，请新建版本号（例如 `1.1.0-om<新客户端版本>`）并重新验证，
+堡垒机客户端升级后，请新建版本号（例如 `1.2.0-om<新客户端版本>`）并重新验证，
 不要把当前版本直接用于未验证的客户端。
 
 ## 1. 它解决了什么问题
@@ -81,6 +81,7 @@ AI 难以稳定发送命令并获得结构化结果。本项目提供一个可�
 - ✅ **端口自动发现**：默认 `8765`，占用时顺延并写入 `active_port.txt`
 - ✅ **连接保活**：空闲时执行可配置的无害命令，降低会话超时概率
 - ✅ **直观控制台**：彩色展示脱敏后的启动参数、连接状态、收到的指令、退出码与服务器返回
+- ✅ **危险操作兜底**：命中高危指令时**不下发到目标服务器**，各入口统一返回提示与 `exit_code: 126`
 - ✅ **安全默认**：仅监听 `127.0.0.1`；命令与返回正文只在当前控制台预览，不写入日志文件
 - ✅ **自动发布**：tag 触发 GitHub Actions 构建、校验和生成与 Release 发布
 
@@ -92,6 +93,7 @@ plugin-bastion-bridge-tianyue/
 ├── params.py                       # 天玥/SecureCRT 参数解析
 ├── ssh_client.py                   # Paramiko SSH 引擎
 ├── api_server.py                   # Flask、SSE 与 Socket.IO API
+├── command_guard.py                # 危险操作兜底（本地拦截，不下发）
 ├── connection.py                   # 连接参数数据类
 ├── config.py                       # 本地配置
 ├── logger.py                       # 滚动日志
@@ -189,8 +191,8 @@ curl http://127.0.0.1:8765/health
 {
   "status": "ok",
   "connected": true,
-  "version": "1.0.0-om6.0.7.0",
-  "bridge_version": "1.0.0",
+  "version": "1.1.0-om6.0.7.0",
+  "bridge_version": "1.1.0",
   "bastion": {"client": "OMClientPlus", "version": "6.0.7.0"}
 }
 ```
@@ -218,6 +220,7 @@ curl -X POST http://127.0.0.1:8765/execute \
 | `ssh_connect_timeout` | `15` | SSH 握手超时秒数 |
 | `retry_max_attempts` | `3` | 连接重试次数 |
 | `retry_delay_seconds` | `2` | 重试间隔秒数 |
+| `ssh_prefer_shell` | `false` | exec 通道不可用时的备用执行通道（仅 `/execute` 与保活；`/stream` 仍走 exec） |
 | `keepalive_enabled` | `true` | 是否启用空闲保活 |
 | `keepalive_interval_seconds` | `60` | 触发保活前的空闲秒数 |
 | `keepalive_command` | `ls` | 保活命令，必须无副作用 |
@@ -225,6 +228,7 @@ curl -X POST http://127.0.0.1:8765/execute \
 | `console_log` | `true` | 是否显示彩色控制台状态、指令与返回预览 |
 | `console_verbose` | `false` | 是否在控制台同时显示详细 INFO/DEBUG 技术日志 |
 | `console_output_limit` | `12000` | 单个指令或输出字段的控制台预览上限；不影响 API 返回的完整数据 |
+| `dangerous_command_guard_enabled` | `true` | 本地危险操作兜底开关，默认开启；规则细节见 `command_guard.py` |
 
 ## 8. 日志与排错
 
@@ -240,6 +244,7 @@ curl -X POST http://127.0.0.1:8765/execute \
 | API 连接被拒 | 重新读取 `active_port.txt`，不要假定端口固定 |
 | `connected: false` | 查看日志中的认证、网络或参数解析错误 |
 | `exit_code: -1` | SSH 未连接或已断开，重新健康检查 |
+| `exit_code: 126` | 命中本地危险操作兜底，命令**未下发**；如确需执行请由授权人员手动完成 |
 | 杀毒软件误报 | 核对 SHA-256 后按组织流程处理，或从源码运行 |
 
 ## 9. 安全与合规
@@ -247,6 +252,8 @@ curl -X POST http://127.0.0.1:8765/execute \
 - 桥接器会接收天玥传入的会话凭证，仅可在**已授权环境**使用。
 - API 无鉴权但只监听回环地址；**本机任意进程仍可能调用**。
 - 密码只存在于进程内存；参数会脱敏，命令与输出正文不写入日志文件。
+- 桥接器会对部分高危指令做**本地拦截**（不下发、返回 `exit_code: 126`）。这是尽力而为
+  的兜底，**不是沙箱**：不要据此放宽授权边界，安全边界仍是操作授权与堡垒机审计。
 - 控制台可能展示服务器业务输出；操作结束后请关闭窗口，不要截图或转发敏感内容。
 - 主机密钥首次连接使用自动接受策略，请确认符合组织安全基线。
 - 详细风险与加固建议见 [SECURITY.md](SECURITY.md)。
@@ -256,7 +263,7 @@ curl -X POST http://127.0.0.1:8765/execute \
 **Q：默认端口是多少？** `8765`。端口占用时自动顺延，以 `active_port.txt` 为准。
 
 **Q：支持哪些天玥版本？** 当前版本已在 `OMClientPlus 6.0.7.0` 上验证通过，版本标记
-`1.0.0-om6.0.7.0`；旧客户端 `6.0.4.16603` 请使用 `1.0.0-om6.0.4.16603` 包。解析器按客户
+`1.1.0-om6.0.7.0`；旧客户端 `6.0.4.16603` 请使用 `1.0.0-om6.0.4.16603` 包。解析器按客户
 端传出的 SecureCRT 会话风格实现，同时兼容多种通用格式；其他客户端版本需重新验证后再标注
 对应版本号。
 
@@ -278,7 +285,7 @@ python -m PyInstaller tianyue_ssh_bridge.spec --clean --noconfirm
 产物位于 `dist\tianyue_ssh_bridge.exe`，不会被 Git 跟踪。`--version` 应打印与
 [version.py](version.py) 一致的桥接器版本和适用堡垒机版本。
 
-CI 发布流程：推送 `v*` tag（例如 `v1.0.0-om6.0.7.0`，与 `version.py` 中的
+CI 发布流程：推送 `v*` tag（例如 `v1.1.0-om6.0.7.0`，与 `version.py` 中的
 `VERSION` 一致）→ Windows runner 安装锁定依赖 → PyInstaller 构建 →
 生成 SHA-256 → 发布 GitHub Release。`workflow_dispatch` 可用于无 tag 的手动构建验证。
 

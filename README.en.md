@@ -20,8 +20,8 @@
 
 | Item | Current value |
 |---|---|
-| Bridge version | `1.0.0` |
-| Full version marker | `1.0.0-om6.0.7.0` |
+| Bridge version | `1.1.0` |
+| Full version marker | `1.1.0-om6.0.7.0` |
 | Supported bastion client | `OMClientPlus 6.0.7.0` |
 | Status | ✅ Verified against the upgraded client |
 
@@ -51,7 +51,7 @@ Confirm the running version in any of these ways:
 - the `version`, `bridge_version`, and `bastion` fields returned by `GET /health`.
 
 After upgrading the bastion client, use a new version number (for example
-`1.1.0-om<new client version>`) and re-verify. Do not point the current build at an unverified client.
+`1.2.0-om<new client version>`) and re-verify. Do not point the current build at an unverified client.
 
 ## 1. Problem solved
 
@@ -84,6 +84,7 @@ This project provides a single-file bridge that can be configured as TianYue's l
 - ✅ **Automatic port discovery**: defaults to `8765`, increments when busy, and writes `active_port.txt`
 - ✅ **Connection keepalive**: runs a configurable harmless command after an idle interval
 - ✅ **Readable console**: colored blocks show sanitized launch fields, connection state, commands, exit codes, and server results
+- ✅ **Dangerous-command backstop**: high-risk commands are **never sent** to the server; every entry point returns the prompt with `exit_code: 126`
 - ✅ **Secure defaults**: loopback-only binding; command/result bodies are previewed only in the live console, never in log files
 - ✅ **Automated releases**: tags trigger GitHub Actions builds, checksums, and Release publication
 
@@ -95,6 +96,7 @@ plugin-bastion-bridge-tianyue/
 ├── params.py                       # TianYue/SecureCRT argument parser
 ├── ssh_client.py                   # Paramiko SSH engine
 ├── api_server.py                   # Flask, SSE, and Socket.IO API
+├── command_guard.py                # Dangerous-command backstop (local, never sent)
 ├── connection.py                   # Connection data model
 ├── config.py                       # Local configuration
 ├── logger.py                       # Rotating logs
@@ -192,7 +194,7 @@ client version it was verified against.
 {
   "status": "ok",
   "connected": true,
-  "version": "1.0.0-om6.0.7.0",
+  "version": "1.1.0-om6.0.7.0",
   "bridge_version": "1.0.0",
   "bastion": {"client": "OMClientPlus", "version": "6.0.7.0"}
 }
@@ -222,6 +224,7 @@ built-in defaults are used when it is absent.
 | `ssh_connect_timeout` | `15` | SSH handshake timeout in seconds |
 | `retry_max_attempts` | `3` | Connection attempts |
 | `retry_delay_seconds` | `2` | Delay between attempts in seconds |
+| `ssh_prefer_shell` | `false` | Fallback channel when exec is unusable (`/execute` and keepalive only; `/stream` still uses exec) |
 | `keepalive_enabled` | `true` | Enable idle keepalive |
 | `keepalive_interval_seconds` | `60` | Idle seconds before keepalive |
 | `keepalive_command` | `ls` | Must be harmless |
@@ -229,6 +232,7 @@ built-in defaults are used when it is absent.
 | `console_log` | `true` | Show colored status, command, and response previews in the console |
 | `console_verbose` | `false` | Also show detailed INFO/DEBUG technical records in the console |
 | `console_output_limit` | `12000` | Per-command or output-field preview limit; full API responses are unaffected |
+| `dangerous_command_guard_enabled` | `true` | Local dangerous-command backstop (on by default); rules live in `command_guard.py` |
 
 ## 8. Logs and troubleshooting
 
@@ -245,6 +249,7 @@ metadata such as lengths, exit codes, and connection status.
 | API connection refused | Read `active_port.txt` again; do not assume a fixed port |
 | `connected: false` | Inspect authentication, network, or parsing errors in the log |
 | `exit_code: -1` | SSH is unavailable or disconnected; run health again |
+| `exit_code: 126` | Blocked by the local dangerous-command backstop and **never sent**; ask an authorized operator to run it manually if truly needed |
 | Antivirus warning | Verify SHA-256 and follow organizational allowlisting, or run from source |
 
 ## 9. Security and compliance
@@ -252,6 +257,8 @@ metadata such as lengths, exit codes, and connection status.
 - The bridge receives session credentials from TianYue. Use it only in an **authorized environment**.
 - The unauthenticated API binds only to loopback, but **any local process may still call it**.
 - Passwords remain in process memory only; arguments are redacted, and command/output bodies are never written to log files.
+- The bridge blocks some high-risk commands locally (no execution, `exit_code: 126`). This is a
+  best-effort backstop, **not a sandbox**: authorization and bastion auditing remain the boundary.
 - The console can display sensitive server output. Close it after use and do not share screenshots containing business data.
 - The first connection automatically accepts the host key. Confirm this meets your security baseline.
 - See [SECURITY.md](SECURITY.md) for the full risk and hardening guidance.
@@ -261,7 +268,7 @@ metadata such as lengths, exit codes, and connection status.
 **Q: What is the default port?** `8765`. If it is busy, the bridge increments it; trust `active_port.txt`.
 
 **Q: Which TianYue versions are supported?** This build is verified against `OMClientPlus 6.0.7.0`
-(version marker `1.0.0-om6.0.7.0`); for the older `6.0.4.16603` client use the
+(version marker `1.1.0-om6.0.7.0`); for the older `6.0.4.16603` client use the
 `1.0.0-om6.0.4.16603` package. The parser implements the SecureCRT session style the client
 produces and several generic formats. Other client versions need re-verification and their own
 version marker.
@@ -284,7 +291,7 @@ python -m PyInstaller tianyue_ssh_bridge.spec --clean --noconfirm
 The result is `dist\tianyue_ssh_bridge.exe`, which Git ignores. `--version` must print the same
 bridge and bastion versions as [version.py](version.py).
 
-CI flow: push a `v*` tag (for example `v1.0.0-om6.0.7.0`, matching `VERSION` in `version.py`) →
+CI flow: push a `v*` tag (for example `v1.1.0-om6.0.7.0`, matching `VERSION` in `version.py`) →
 install pinned dependencies on a Windows runner → build with PyInstaller → generate SHA-256 →
 publish a GitHub Release. `workflow_dispatch` supports a build without a tag.
 

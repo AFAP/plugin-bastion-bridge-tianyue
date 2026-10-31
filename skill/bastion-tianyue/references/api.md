@@ -13,8 +13,8 @@ GET <BASE>/health
 {
   "status": "ok",
   "connected": true,
-  "version": "1.0.0-om6.0.7.0",
-  "bridge_version": "1.0.0",
+  "version": "1.1.0-om6.0.7.0",
+  "bridge_version": "1.1.0",
   "bastion": {"client": "OMClientPlus", "version": "6.0.7.0"}
 }
 ```
@@ -35,7 +35,8 @@ Content-Type: application/json
 {"stdout": "Linux ...", "stderr": "", "exit_code": 0}
 ```
 
-`exit_code` 为 `0` 表示成功，非 `0` 表示远端命令失败，`-1` 表示 SSH 未连接或执行异常。
+`exit_code` 为 `0` 表示成功，非 `0` 表示远端命令失败，`-1` 表示 SSH 未连接或执行异常，
+`126` 表示命中桥接器本地危险操作兜底（命令未下发，`stderr` 为提示文案；不要改写命令绕过）。
 
 ## 3. 流式输出（SSE）
 

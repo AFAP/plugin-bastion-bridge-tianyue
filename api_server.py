@@ -26,6 +26,13 @@ from typing import Any, Dict, Optional
 from flask import Flask, Response, jsonify, request
 from flask_socketio import SocketIO, emit
 
+from command_guard import (
+    BLOCKED_EXIT_CODE,
+    CommandGuard,
+    GuardDecision,
+    build_blocked_input_result,
+    build_blocked_result,
+)
 from connection import ConnectionParams
 from logger import get_logger, log_blank_line, log_console
 from ssh_client import SSHBridge
@@ -63,9 +70,18 @@ def _preview_text(value: Any, limit: int) -> tuple[str, bool]:
 class BridgeAPI:
     """Flask/SocketIO wrapper around an SSHBridge instance."""
 
-    def __init__(self, bridge: SSHBridge, console_output_limit: int = 12000) -> None:
+    def __init__(
+        self,
+        bridge: SSHBridge,
+        console_output_limit: int = 12000,
+        command_guard: Optional[CommandGuard] = None,
+    ) -> None:
         self.bridge: SSHBridge = bridge
         self.console_output_limit = max(256, int(console_output_limit))
+        # 危险操作兜底：与 SSHBridge 共用同一实例，各入口判定结果一致。
+        self.command_guard: CommandGuard = (
+            command_guard if command_guard is not None else CommandGuard.default()
+        )
         self.app: Flask = Flask(__name__)
         self.app.config["JSON_AS_ASCII"] = False
         self.socketio: SocketIO = SocketIO(
@@ -133,6 +149,23 @@ class BridgeAPI:
             level=40,
         )
         log_blank_line()
+
+    def _show_blocked(self, source: str, decision: GuardDecision) -> None:
+        """Show that a command was refused (fact and source only; the rule stays internal)."""
+        logger.warning("危险操作已拒绝（未下发到服务器）| 来源 %s", source)
+        head = decision.message.splitlines()[0] if decision.message else ""
+        log_blank_line()
+        log_console("⛔ 未下发到目标服务器 | 来源 %s", source, level=30)
+        if head:
+            log_console("    已返回调用方：%s", head, level=30)
+        log_blank_line()
+
+    def _guard_command(self, source: str, command: str) -> Optional[GuardDecision]:
+        """Return a guard decision when ``command`` must not be executed."""
+        decision = self.command_guard.check(command)
+        if decision is not None:
+            self._show_blocked(source, decision)
+        return decision
 
     def _show_stream_chunk(self, stream_type: str, data: Any, remaining: int) -> tuple[int, bool]:
         """Show one streaming chunk within the total console preview budget."""
@@ -219,6 +252,10 @@ class BridgeAPI:
             self._show_command("HTTP /execute", command, timeout)
             started = time.perf_counter()
 
+            decision = self._guard_command("HTTP /execute", command)
+            if decision is not None:
+                return jsonify(build_blocked_result(decision))
+
             try:
                 result = self.bridge.execute(command, timeout=timeout)
                 logger.info("/execute finished exit_code=%s", result.get("exit_code"))
@@ -237,6 +274,10 @@ class BridgeAPI:
 
             logger.info("/stream SSE command_len=%d", len(command))
             self._show_command("HTTP SSE /stream", command)
+
+            decision = self._guard_command("HTTP SSE /stream", command)
+            if decision is not None:
+                return self._blocked_stream_response(command, decision)
 
             def event_stream():
                 started = time.perf_counter()
@@ -303,6 +344,12 @@ class BridgeAPI:
 
             logger.info("/input data_len=%d", len(data))
             self._show_interactive_input("HTTP /input", data)
+
+            decision = self.command_guard.check_input(data)
+            if decision is not None:
+                self._show_blocked("HTTP /input", decision)
+                return jsonify(build_blocked_input_result(decision))
+
             ok, message = self._send_interactive_input(data)
             self._show_interactive_status(ok, message)
             if not ok:
@@ -338,6 +385,12 @@ class BridgeAPI:
             logger.info("Socket.IO execute command_len=%d timeout=%d", len(command), timeout)
             self._show_command("Socket.IO execute", command, timeout)
             started = time.perf_counter()
+
+            decision = self._guard_command("Socket.IO execute", command)
+            if decision is not None:
+                emit("result", build_blocked_result(decision))
+                return
+
             try:
                 result = self.bridge.execute(command, timeout=timeout)
                 self._show_result("Socket.IO execute", result, time.perf_counter() - started)
@@ -355,6 +408,15 @@ class BridgeAPI:
                 return
             logger.info("Socket.IO stream command_len=%d", len(command))
             self._show_command("Socket.IO stream", command)
+
+            decision = self._guard_command("Socket.IO stream", command)
+            if decision is not None:
+                emit("start", {"command": command, "connected": self.bridge.is_connected()})
+                emit("output", {"type": "stderr", "data": decision.message})
+                emit("output", {"type": "exit", "exit_code": BLOCKED_EXIT_CODE})
+                emit("end", {})
+                return
+
             started = time.perf_counter()
             displayed_chars = 0
             stdout_chars = 0
@@ -406,6 +468,14 @@ class BridgeAPI:
                 emit("error", {"error": "missing or invalid 'data'"})
                 return
             self._show_interactive_input("Socket.IO input", data)
+
+            decision = self.command_guard.check_input(data)
+            if decision is not None:
+                self._show_blocked("Socket.IO input", decision)
+                payload_data = build_blocked_input_result(decision)
+                emit("input_status", {"ok": False, **payload_data})
+                return
+
             ok, message = self._send_interactive_input(data)
             self._show_interactive_status(ok, message)
             emit("input_status", {"ok": ok, "message": message})
@@ -447,6 +517,23 @@ class BridgeAPI:
     @staticmethod
     def _sse_event(event: str, data: Dict[str, Any]) -> str:
         return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+    def _blocked_stream_response(self, command: str, decision: GuardDecision) -> Response:
+        """Build the SSE refusal; identical to a normal run except the prompt and exit code."""
+
+        def blocked_stream():
+            yield self._sse_event(
+                "start", {"command": command, "connected": self.bridge.is_connected()}
+            )
+            yield self._sse_event("stderr", {"data": decision.message})
+            yield self._sse_event("exit", {"exit_code": BLOCKED_EXIT_CODE})
+            yield self._sse_event("end", {})
+
+        return Response(
+            blocked_stream(),
+            mimetype="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
 
     def _send_interactive_input(self, data: str) -> tuple[bool, str]:
         """Send data to an interactive shell channel if one is available.
@@ -560,6 +647,7 @@ def start_api(
     host: str = "127.0.0.1",
     port: int = 8765,
     console_output_limit: int = 12000,
+    command_guard: Optional[CommandGuard] = None,
 ) -> None:
     """Public entry point used by ``main.py``.
 
@@ -568,6 +656,12 @@ def start_api(
         host: Local interface to bind to. Defaults to loopback for safety.
         port: TCP port for the API server.
         console_output_limit: Maximum command/output characters shown per block.
+        command_guard: Dangerous-command guard shared with the bridge.  Defaults
+            to the built-in rules when omitted.
     """
-    api = BridgeAPI(bridge, console_output_limit=console_output_limit)
+    api = BridgeAPI(
+        bridge,
+        console_output_limit=console_output_limit,
+        command_guard=command_guard,
+    )
     api.run(host=host, port=port)

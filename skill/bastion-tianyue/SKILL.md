@@ -80,6 +80,8 @@ python "<本技能目录>\scripts\bridge.py" input "y`n"
 2. 不把输出中的密码、私钥、令牌或业务数据写入无保护文件或转发到本机之外。
 3. 删除、关机、重启、防火墙变更、磁盘格式化、生产数据库写入等危险操作必须逐条确认。
 4. 所有命令应保留在堡垒机审计通道内，不绕过审计、不提权、不清理历史。
+5. 桥接器本身也会本地拦截部分高危指令：返回 `exit_code: 126` 且 `stderr` 为提示语，
+   表示命令**没有下发**。遇到时如实告知用户，不要改写命令绕过拦截。
 
 ## 排错速查
 
@@ -88,6 +90,7 @@ python "<本技能目录>\scripts\bridge.py" input "y`n"
 | 端口文件不存在 | 请用户在天玥控制台点击 SSH 资源唤起桥接器 |
 | `/health` 为 `connected: false` | 查看 `%LOCALAPPDATA%\sshbridge\TianYueSSHBridge\logs\bridge.log` |
 | `exit_code: -1` | 先检查健康状态，必要时请用户重新连接资源 |
+| `exit_code: 126` | 命中本地危险操作兜底，命令未下发；告知用户，不要改写绕过 |
 | 命令超时 | 增大 `--timeout` 或改用 `stream` |
 | 中文乱码 | 使用本技能的 `scripts/bridge.py`，它会把控制台切到 UTF-8 |
 

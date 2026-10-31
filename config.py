@@ -8,6 +8,7 @@ needing administrator privileges or modifying its own installation directory.
 
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -28,12 +29,22 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "retry_max_attempts": 3,
     "retry_delay_seconds": 2,
     "exit_on_connect_failure": False,
+    # 执行通道：默认走 exec；个别堡垒机只允许交互 shell 时可设为 true。
+    # 两条通道互斥，同一请求绝不会换通道重跑（避免命令执行两次）。
+    "ssh_prefer_shell": False,
     # Logging.
     "log_level": "INFO",
     # Keep-alive: send a harmless command if idle to prevent bastion timeout.
     "keepalive_enabled": True,
     "keepalive_interval_seconds": 60,
     "keepalive_command": "ls",
+    # 危险操作兜底（内部策略，见 command_guard.py；规则细节不写入对外文档）。
+    "dangerous_command_guard_enabled": True,
+    "dangerous_command_guard_message": "",
+    "dangerous_command_guard_programs": [],
+    "dangerous_command_guard_patterns": [],
+    "dangerous_command_guard_allow_patterns": [],
+    "dangerous_command_guard_disabled_rules": [],
     # Log rotation.
     "log_max_bytes": 10 * 1024 * 1024,
     "log_backup_count": 5,
@@ -46,9 +57,16 @@ DEFAULT_CONFIG: Dict[str, Any] = {
 
 
 def _expand_env(value: Any) -> Any:
-    """Recursively expand ``%VAR%`` style environment variables in strings."""
+    """Recursively expand ``%VAR%`` style environment variables in strings.
+
+    Only string values that actually contain ``%`` are touched, and the result
+    stays a plain string: ``os.path.expandvars`` is the right tool here.
+    ``pathlib.Path`` has no ``expandvars`` method, and converting arbitrary
+    config values (commands, regular expressions, log messages) into ``Path``
+    objects would both crash on ``%`` and rewrite Windows path separators.
+    """
     if isinstance(value, str):
-        return Path(value).expandvars().as_posix() if "%" in value else value
+        return os.path.expandvars(value) if "%" in value else value
     if isinstance(value, dict):
         return {k: _expand_env(v) for k, v in value.items()}
     if isinstance(value, list):

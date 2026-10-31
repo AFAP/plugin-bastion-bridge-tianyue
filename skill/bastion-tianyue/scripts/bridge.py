@@ -177,7 +177,11 @@ def cmd_stream(args: argparse.Namespace) -> int:
     try:
         with urllib.request.urlopen(url, timeout=args.timeout) as response:
             buffer = b""
-            for chunk in iter(lambda: response.read(4096), b""):
+            # HTTPResponse.read(n) waits for n bytes (or EOF), which would
+            # buffer small SSE events such as an interactive "Password:"
+            # prompt.  read1 returns as soon as any data is available.
+            read_chunk = getattr(response, "read1", None) or response.read
+            for chunk in iter(lambda: read_chunk(4096), b""):
                 buffer += chunk
                 while b"\n\n" in buffer:
                     raw_event, buffer = buffer.split(b"\n\n", 1)

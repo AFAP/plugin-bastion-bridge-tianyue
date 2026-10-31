@@ -8,6 +8,7 @@
 | API 连接被拒 | 重新读取端口文件；端口占用时会从 `8765` 自动顺延 |
 | `/health` 为 `connected: false` | 查看日志末尾的认证、网络或参数解析错误 |
 | `exit_code: -1` | SSH 已断开或未连接；先健康检查，必要时重新连接资源 |
+| `exit_code: 126` | 命中本地危险操作兜底，命令根本没有下发；如实告知用户，不要改写命令绕过 |
 | 命令超时 | 增大 `timeout` 或使用 `/stream` |
 | `no acceptable kex algorithm` | 当前版本保留 Paramiko 2.12.0 兼容旧算法；如仍失败，请提交已脱敏日志 |
 | 中文乱码 | 使用 `scripts/bridge.py`，不要在非 UTF-8 终端手工拼请求 |

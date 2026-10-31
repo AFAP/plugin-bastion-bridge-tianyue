@@ -7,7 +7,7 @@ Windows executable file. It assumes the following source modules are present
 in the same directory:
 
     connection.py, params.py, config.py, logger.py, version.py,
-    ssh_client.py, api_server.py, main.py, requirements.txt
+    command_guard.py, ssh_client.py, api_server.py, main.py, requirements.txt
 
 The output filename is intentionally ASCII (tianyue_ssh_bridge.exe) to avoid
 batch-file and command-line encoding issues on Windows. Users may rename the
